@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
+import { useState, useEffect, useRef } from "react";
+import { onAuthStateChanged, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "./firebase";
 import Home from "./components/Home";
@@ -9,67 +9,80 @@ import Reminders from "./components/Reminders";
 import Journal from "./components/Journal";
 import "./App.css";
 
+const TABS = [
+  { id: "home", label: "Home", icon: "🏠", bg: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=60" },
+  { id: "stats", label: "Stats", icon: "📊", bg: "https://images.unsplash.com/photo-1551963831-b3b1ca40c98e?w=800&q=60" },
+  { id: "steps", label: "Steps", icon: "👣", bg: "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800&q=60" },
+  { id: "reminders", label: "Alarms", icon: "⏰", bg: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=60" },
+  { id: "journal", label: "Journal", icon: "📓", bg: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&q=60" },
+];
+
 function App() {
   const [tab, setTab] = useState("home");
+  const [prevTab, setPrevTab] = useState(null);
+  const [sliding, setSliding] = useState(false);
+  const [direction, setDirection] = useState(1);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [habits, setHabits] = useState([]);
+  const tabIds = TABS.map(t => t.id);
 
-  // Auth listener
   useEffect(() => {
-    getRedirectResult(auth).catch(console.error);
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        await loadHabits(u.uid);
-      } else {
-        const saved = localStorage.getItem("habits");
-        setHabits(saved ? JSON.parse(saved) : []);
-      }
-      setLoading(false);
-    });
     getRedirectResult(auth).then((result) => {
       if (result?.user) {
         setUser(result.user);
         loadHabits(result.user.uid);
       }
     }).catch(console.error);
+
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) await loadHabits(u.uid);
+      else {
+        const saved = localStorage.getItem("habits");
+        setHabits(saved ? JSON.parse(saved) : []);
+      }
+      setLoading(false);
+    });
     return unsub;
   }, []);
 
   async function loadHabits(uid) {
     const ref = doc(db, "users", uid);
     const snap = await getDoc(ref);
-    if (snap.exists()) {
-      setHabits(snap.data().habits || []);
-    }
+    if (snap.exists()) setHabits(snap.data().habits || []);
   }
 
   async function saveHabits(updated, uid) {
-    if (uid) {
-      await setDoc(doc(db, "users", uid), { habits: updated }, { merge: true });
-    } else {
-      localStorage.setItem("habits", JSON.stringify(updated));
-    }
+    if (uid) await setDoc(doc(db, "users", uid), { habits: updated }, { merge: true });
+    else localStorage.setItem("habits", JSON.stringify(updated));
   }
 
   function getToday() {
     return new Date().toISOString().split("T")[0];
   }
 
+  function switchTab(newTab) {
+    if (newTab === tab || sliding) return;
+    const oldIdx = tabIds.indexOf(tab);
+    const newIdx = tabIds.indexOf(newTab);
+    setDirection(newIdx > oldIdx ? 1 : -1);
+    setPrevTab(tab);
+    setSliding(true);
+    setTimeout(() => {
+      setTab(newTab);
+      setSliding(false);
+      setPrevTab(null);
+    }, 380);
+  }
+
   function addHabit(name, category) {
     if (!name.trim()) return;
-    const updated = [
-      ...habits,
-      {
-        id: Date.now(),
-        name: name.trim(),
-        category: category || "General",
-        completedDates: [],
-        streak: 0,
-        reminder: null,
-      },
-    ];
+    const updated = [...habits, {
+      id: Date.now(), name: name.trim(),
+      category: category || "General",
+      completedDates: [], streak: 0, reminder: null,
+    }];
     setHabits(updated);
     saveHabits(updated, user?.uid);
   }
@@ -82,8 +95,7 @@ function App() {
       const completedDates = done
         ? h.completedDates.filter((d) => d !== today)
         : [...h.completedDates, today];
-      const streak = calcStreak(completedDates);
-      return { ...h, completedDates, streak };
+      return { ...h, completedDates, streak: calcStreak(completedDates) };
     });
     setHabits(updated);
     saveHabits(updated, user?.uid);
@@ -104,8 +116,7 @@ function App() {
   function calcStreak(dates) {
     if (!dates.length) return 0;
     const sorted = [...dates].sort().reverse();
-    let streak = 0;
-    let current = new Date();
+    let streak = 0, current = new Date();
     for (let d of sorted) {
       const diff = Math.round((current - new Date(d)) / 86400000);
       if (diff <= 1) { streak++; current = new Date(d); }
@@ -115,11 +126,8 @@ function App() {
   }
 
   async function handleLogin() {
-    try {
-      await signInWithRedirect(auth, googleProvider);
-    } catch (e) {
-      console.error(e);
-    }
+    try { await signInWithRedirect(auth, googleProvider); }
+    catch (e) { console.error(e); }
   }
 
   async function handleLogout() {
@@ -127,48 +135,62 @@ function App() {
     setHabits([]);
   }
 
-  if (loading) {
-    return (
-      <div className="app loading">
-        <div className="spinner" />
-        <p>Loading...</p>
-      </div>
-    );
-  }
+  const currentTabData = TABS.find(t => t.id === tab);
+  const prevTabData = TABS.find(t => t.id === prevTab);
+
+  if (loading) return (
+    <div className="app loading">
+      <div className="spinner" />
+      <p>Loading...</p>
+    </div>
+  );
 
   return (
     <div className="app">
+      {/* Backgrounds */}
+      {TABS.map(t => (
+        <div
+          key={t.id}
+          className={`bg-layer ${t.id === tab ? "bg-active" : ""} ${t.id === prevTab ? "bg-prev" : ""}`}
+          style={{ backgroundImage: `url(${t.bg})` }}
+        />
+      ))}
+      <div className="bg-overlay" />
+
       {/* Header */}
       <header className="app-header">
-        <span className="app-title">🔥 HabitFlow</span>
+        <span className="app-title">HabitFlow</span>
         {user ? (
           <div className="user-info">
             <img src={user.photoURL} alt="avatar" className="avatar" />
             <button className="logout-btn" onClick={handleLogout}>Sign out</button>
           </div>
         ) : (
-          <button className="login-btn" onClick={handleLogin}>
-            Sign in with Google
-          </button>
+          <button className="login-btn" onClick={handleLogin}>Sign in</button>
         )}
       </header>
 
-      <main className="content">
-        {tab === "home" && (
-          <Home habits={habits} addHabit={addHabit} toggleHabit={toggleHabit} deleteHabit={deleteHabit} getToday={getToday} />
-        )}
+      {/* Content */}
+      <main className={`content slide-${sliding ? (direction > 0 ? "left" : "right") : "idle"}`}>
+        {tab === "home" && <Home habits={habits} addHabit={addHabit} toggleHabit={toggleHabit} deleteHabit={deleteHabit} getToday={getToday} />}
         {tab === "stats" && <Stats habits={habits} getToday={getToday} />}
         {tab === "steps" && <Steps />}
         {tab === "reminders" && <Reminders habits={habits} setReminder={setReminder} />}
         {tab === "journal" && <Journal user={user} db={db} />}
       </main>
 
+      {/* Bottom Nav */}
       <nav className="bottom-nav">
-        <button className={tab === "home" ? "active" : ""} onClick={() => setTab("home")}>🏠<span>Home</span></button>
-        <button className={tab === "stats" ? "active" : ""} onClick={() => setTab("stats")}>📊<span>Stats</span></button>
-        <button className={tab === "steps" ? "active" : ""} onClick={() => setTab("steps")}>👣<span>Steps</span></button>
-        <button className={tab === "reminders" ? "active" : ""} onClick={() => setTab("reminders")}>⏰<span>Alarms</span></button>
-        <button className={tab === "journal" ? "active" : ""} onClick={() => setTab("journal")}>📓<span>Journal</span></button>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            className={tab === t.id ? "active" : ""}
+            onClick={() => switchTab(t.id)}
+          >
+            <span className="nav-icon">{t.icon}</span>
+            <span className="nav-label">{t.label}</span>
+          </button>
+        ))}
       </nav>
     </div>
   );
