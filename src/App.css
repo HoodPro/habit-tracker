@@ -142,6 +142,7 @@ body {
   z-index: 5;
   padding-bottom: 90px;
   scrollbar-width: none;
+  width: 100%;
 }
 
 .content::-webkit-scrollbar { display: none; }
@@ -211,6 +212,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .tab-title {
