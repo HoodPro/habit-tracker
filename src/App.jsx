@@ -28,17 +28,19 @@ function App() {
   const tabIds = TABS.map(t => t.id);
 
   useEffect(() => {
-    getRedirectResult(auth).then((result) => {
+    getRedirectResult(auth).then(async (result) => {
       if (result?.user) {
         setUser(result.user);
-        loadHabits(result.user.uid);
+        await loadHabits(result.user.uid);
+        setLoading(false);
       }
     }).catch(console.error);
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u) await loadHabits(u.uid);
-      else {
+      if (u) {
+        await loadHabits(u.uid);
+      } else {
         const saved = localStorage.getItem("habits");
         setHabits(saved ? JSON.parse(saved) : []);
       }
