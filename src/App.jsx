@@ -28,6 +28,12 @@ function App() {
       }
       setLoading(false);
     });
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        setUser(result.user);
+        loadHabits(result.user.uid);
+      }
+    }).catch(console.error);
     return unsub;
   }, []);
 
@@ -110,12 +116,7 @@ function App() {
 
   async function handleLogin() {
     try {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        await signInWithPopup(auth, googleProvider);
-      }
+      await signInWithRedirect(auth, googleProvider);
     } catch (e) {
       console.error(e);
     }
