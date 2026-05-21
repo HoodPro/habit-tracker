@@ -4,7 +4,7 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDYZ7OW3n81gc6Z-TdOFv8SbMzxHaY_0No",
-  authDomain: "habit-tracker-fawn-five.vercel.app",
+  authDomain: "habit-tracker-1a9b3.firebaseapp.com",
   projectId: "habit-tracker-1a9b3",
   storageBucket: "habit-tracker-1a9b3.firebasestorage.app",
   messagingSenderId: "93511086307",
