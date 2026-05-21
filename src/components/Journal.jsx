@@ -1,43 +1,79 @@
 import { useState, useEffect } from "react";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const MOODS = ["😄", "😊", "😐", "😔", "😢", "😤", "😴", "🤩", "😰", "🥳"];
 
-export default function Journal() {
-  const [entries, setEntries] = useState(() => {
-    const saved = localStorage.getItem("journal");
-    return saved ? JSON.parse(saved) : {};
-  });
-
+export default function Journal({ user, db }) {
+  const [entries, setEntries] = useState({});
   const [note, setNote] = useState("");
   const [mood, setMood] = useState("");
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
-    if (entries[today]) {
-      setNote(entries[today].note || "");
-      setMood(entries[today].mood || "");
+    if (user && db) {
+      loadEntries();
+    } else {
+      const saved = localStorage.getItem("journal");
+      const parsed = saved ? JSON.parse(saved) : {};
+      setEntries(parsed);
+      if (parsed[today]) {
+        setNote(parsed[today].note || "");
+        setMood(parsed[today].mood || "");
+      }
     }
-  }, []);
+  }, [user]);
 
-  useEffect(() => {
-    localStorage.setItem("journal", JSON.stringify(entries));
-  }, [entries]);
+  async function loadEntries() {
+    try {
+      const ref = doc(db, "journals", user.uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data().entries || {};
+        setEntries(data);
+        if (data[today]) {
+          setNote(data[today].note || "");
+          setMood(data[today].mood || "");
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
-  function saveEntry() {
+  async function saveEntry() {
     if (!note.trim() && !mood) return;
-    setEntries((prev) => ({
-      ...prev,
+    const updated = {
+      ...entries,
       [today]: { note, mood, date: today },
-    }));
+    };
+    setEntries(updated);
+
+    if (user && db) {
+      await setDoc(
+        doc(db, "journals", user.uid),
+        { entries: updated },
+        { merge: true }
+      );
+    } else {
+      localStorage.setItem("journal", JSON.stringify(updated));
+    }
     alert("Journal entry saved! ✅");
   }
 
-  function deleteEntry(date) {
-    setEntries((prev) => {
-      const updated = { ...prev };
-      delete updated[date];
-      return updated;
-    });
+  async function deleteEntry(date) {
+    const updated = { ...entries };
+    delete updated[date];
+    setEntries(updated);
+
+    if (user && db) {
+      await setDoc(
+        doc(db, "journals", user.uid),
+        { entries: updated },
+        { merge: true }
+      );
+    } else {
+      localStorage.setItem("journal", JSON.stringify(updated));
+    }
   }
 
   const sortedEntries = Object.values(entries).sort((a, b) =>
@@ -57,7 +93,12 @@ export default function Journal() {
     <div className="tab-content">
       <h2 className="tab-title">📓 Journal</h2>
 
-      {/* Today's entry */}
+      {!user && (
+        <div className="info-card">
+          <p>💡 Sign in with Google to sync your journal across devices!</p>
+        </div>
+      )}
+
       <div className="journal-card">
         <h3>How are you feeling today?</h3>
         <div className="mood-picker">
@@ -85,7 +126,6 @@ export default function Journal() {
         </button>
       </div>
 
-      {/* Past entries */}
       <div className="past-entries">
         <h3>Past Entries</h3>
         {sortedEntries.length === 0 && (
@@ -96,11 +136,10 @@ export default function Journal() {
             <div className="entry-header">
               <span className="entry-date">{formatDate(entry.date)}</span>
               <div className="entry-actions">
-                {entry.mood && <span className="entry-mood">{entry.mood}</span>}
-                <button
-                  className="delete"
-                  onClick={() => deleteEntry(entry.date)}
-                >
+                {entry.mood && (
+                  <span className="entry-mood">{entry.mood}</span>
+                )}
+                <button className="delete" onClick={() => deleteEntry(entry.date)}>
                   🗑
                 </button>
               </div>
