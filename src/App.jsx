@@ -126,8 +126,16 @@ function App() {
   }
 
   async function handleLogin() {
-    try { await signInWithRedirect(auth, googleProvider); }
-    catch (e) { console.error(e); }
+    try {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   async function handleLogout() {
