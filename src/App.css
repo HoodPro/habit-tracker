@@ -870,3 +870,10 @@ body {
   .clock-time { font-size: 4rem; }
   .steps-count { font-size: 4.5rem; }
 }
+.loading-credit {
+  position: absolute;
+  bottom: 30px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 1px;
+}

@@ -156,6 +156,7 @@ function App() {
     <div className="app loading">
       <div className="spinner" />
       <p>Loading...</p>
+      <p className="loading-credit"> by Hemanth Vasistha</p>
     </div>
   );
 
