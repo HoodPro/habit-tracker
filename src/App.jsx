@@ -133,13 +133,14 @@ function App() {
 
   async function handleLogin() {
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (e) {
-      if (e.code === "auth/popup-blocked" || e.code === "auth/cancelled-popup-request") {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
         await signInWithRedirect(auth, googleProvider);
       } else {
-        console.error(e);
+        await signInWithPopup(auth, googleProvider);
       }
+    } catch (e) {
+      console.error("Login error:", e);
     }
   }
 
