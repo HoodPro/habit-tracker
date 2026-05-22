@@ -133,6 +133,7 @@ function App() {
 
   async function handleLogin() {
     try {
+      googleProvider.setCustomParameters({ prompt: "select_account" });
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (isMobile) {
         await signInWithRedirect(auth, googleProvider);
