@@ -28,15 +28,19 @@ function App() {
   const tabIds = TABS.map(t => t.id);
 
   useEffect(() => {
+    console.log("Checking redirect result...");
     getRedirectResult(auth).then(async (result) => {
+      console.log("Redirect result:", result);
       if (result?.user) {
+        console.log("User from redirect:", result.user);
         setUser(result.user);
         await loadHabits(result.user.uid);
         setLoading(false);
       }
-    }).catch(console.error);
+    }).catch((e) => console.error("Redirect error:", e));
 
     const unsub = onAuthStateChanged(auth, async (u) => {
+      console.log("Auth state changed:", u);
       setUser(u);
       if (u) {
         await loadHabits(u.uid);
