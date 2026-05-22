@@ -1,0 +1,4 @@
+#Fri May 22 20:55:43 IST 2026
+base.0=C\:\\Users\\heman\\habit-tracker\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+renamed.0=classes.dex
+path.0=classes.dex
