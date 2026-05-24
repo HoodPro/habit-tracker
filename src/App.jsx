@@ -30,14 +30,12 @@ function App() {
   useEffect(() => {
     console.log("Checking redirect result...");
     getRedirectResult(auth).then(async (result) => {
-      console.log("Redirect result:", result);
       if (result?.user) {
-        console.log("User from redirect:", result.user);
         setUser(result.user);
         await loadHabits(result.user.uid);
         setLoading(false);
       }
-    }).catch((e) => console.error("Redirect error:", e));
+    }).catch(console.error);
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       console.log("Auth state changed:", u);
@@ -140,13 +138,15 @@ function App() {
         await signInWithPopup(auth, googleProvider);
       }
     } catch (e) {
-      console.error("Login error:", e);
+      console.error(e);
     }
   }
 
   async function handleLogout() {
     await signOut(auth);
+    localStorage.removeItem("user");
     setHabits([]);
+    setUser(null);
   }
 
   const currentTabData = TABS.find(t => t.id === tab);
