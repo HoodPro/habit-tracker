@@ -131,14 +131,24 @@ function App() {
 
   async function handleLogin() {
     try {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        await signInWithPopup(auth, googleProvider);
-      }
+      googleProvider.setCustomParameters({
+        prompt: "select_account",
+      });
+      await signInWithPopup(auth, googleProvider);
     } catch (e) {
-      console.error(e);
+      if (
+        e.code === "auth/popup-blocked" ||
+        e.code === "auth/popup-closed-by-user" ||
+        e.code === "auth/cancelled-popup-request"
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        console.error(e.code, e.message);
+      }
     }
   }
 
